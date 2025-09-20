@@ -95,3 +95,8 @@ if (isProduction) {
 
 export { storage };
 
+
+
+  getPenaltiesByMerchant(merchantId: string): Promise<any[]>;
+  getMerchantDashboardStats(merchantId: string): Promise<any>;
+

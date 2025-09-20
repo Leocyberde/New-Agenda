@@ -2289,7 +2289,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Getting merchant stats for:", req.user.userId);
       const stats = await storage.getMerchantDashboardStats(req.user.userId);
-      console.log("Merchant stats retrieved:", stats);
       res.json(stats);
     } catch (error) {
       console.error("Error in merchant stats endpoint:", error);
@@ -2313,7 +2312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
 
-      const penalties = await storage.getPenaltiesByMerchant(merchantId);
+      const penalties = await storage.getPenaltiesByMerchant(req.user.userId);
 
       res.json(penalties);
     } catch (error) {
@@ -3734,7 +3733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Employee sees penalties from their merchant
       const merchantId = req.user.merchantId;
-      const penalties = await storage.getPenaltiesByMerchant(merchantId);
+      const penalties = await storage.getPenaltiesByMerchant(req.user.userId);
       res.json(penalties);
     } catch (error) {
       console.error("Error getting employee penalties:", error);

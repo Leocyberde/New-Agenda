@@ -1211,3 +1211,28 @@ export class PostgreSQLStorage implements IStorage {
   }
 }
 
+
+
+  async getPenaltiesByMerchant(merchantId: string): Promise<any[]> {
+    if (!this.initialized) await this.initialize();
+    // Assuming there's a 'penalties' table or similar in your schema
+    // For now, returning an empty array or a mock if no such table exists
+    console.warn("getPenaltiesByMerchant not fully implemented. Returning mock data.");
+    return [];
+  }
+
+  async getMerchantDashboardStats(merchantId: string): Promise<any> {
+    if (!this.initialized) await this.initialize();
+    // This method should aggregate various stats for a merchant's dashboard
+    // For now, returning a basic mock structure
+    console.warn("getMerchantDashboardStats not fully implemented. Returning mock data.");
+    return {
+      totalAppointments: 0,
+      completedAppointments: 0,
+      pendingAppointments: 0,
+      totalRevenue: 0,
+      // Add other relevant stats here
+    };
+  }
+
+

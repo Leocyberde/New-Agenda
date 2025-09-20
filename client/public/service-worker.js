@@ -103,3 +103,18 @@ self.addEventListener('message', event => {
   }
 });
 
+// Handle install prompt
+self.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  self.deferredPrompt = event;
+  
+  // Send message to client to show install button
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'SHOW_INSTALL_PROMPT'
+      });
+    });
+  });
+});
+

@@ -98,5 +98,5 @@ export { storage };
 
 
 
-  getMerchantDashboardStats(merchantId: string): Promise<any>;
+
 

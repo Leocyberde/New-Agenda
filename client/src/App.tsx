@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { authService } from "@/lib/auth";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import MerchantDashboard from "@/pages/merchant-dashboard";
@@ -99,6 +100,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Router />
+        <PWAInstallPrompt />
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -97,6 +97,6 @@ export { storage };
 
 
 
-  getPenaltiesByMerchant(merchantId: string): Promise<any[]>;
+  getPenaltiesByMerchant(merchantId): Promise<any[]>;
   getMerchantDashboardStats(merchantId: string): Promise<any>;
 

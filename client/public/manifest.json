@@ -9,14 +9,6 @@
   "background_color": "#ffffff",
   "theme_color": "#8b5cf6",
   "categories": ["business", "productivity"],
-  "screenshots": [
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "icons": [
     {
       "src": "/icon-192x192.png",

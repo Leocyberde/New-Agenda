@@ -81,12 +81,11 @@ export interface IStorage {
   processExpiredAccess(): Promise<number>;
 }
 
-// Use PostgreSQL se DATABASE_URL estiver disponível, caso contrário use SQLite
-const usePostgres = !!process.env.DATABASE_URL;
+const isProduction = process.env.NODE_ENV === "production";
 
 let storage: IStorage;
 
-if (usePostgres) {
+if (isProduction) {
   const { PostgreSQLStorage } = await import("./postgres-storage");
   storage = new PostgreSQLStorage();
 } else {

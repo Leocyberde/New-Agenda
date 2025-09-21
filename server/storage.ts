@@ -74,6 +74,7 @@ export interface IStorage {
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
   createSystemSetting(setting: SystemSetting): Promise<SystemSetting>;
   updateSystemSetting(key: string, value: string): Promise<SystemSetting | undefined>;
+  getAllSystemSettings(): Promise<SystemSetting[]>;
 
   initialize(): Promise<void>;
   getEmployeeAvailability(employeeId: string, date: Date): Promise<AvailabilityData>;
@@ -94,4 +95,3 @@ if (isProduction) {
 }
 
 export { storage };
-

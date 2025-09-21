@@ -885,6 +885,11 @@ export class PostgreSQLStorage implements IStorage {
     return updatedSetting;
   }
 
+  async getAllSystemSettings(): Promise<SystemSetting[]> {
+    if (!this.initialized) await this.initialize();
+    return this.db.select().from(systemSettings).execute();
+  }
+
   async processExpiredAccess(): Promise<number> {
     if (!this.initialized) await this.initialize();
     const now = new Date();
@@ -1249,27 +1254,27 @@ export class PostgreSQLStorage implements IStorage {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const today = now.toISOString().split('T')[0];
 
-    const appointments = await this.db.select().from(appointments).where(eq(appointments.merchantId, merchantId)).execute();
-    const services = await this.db.select().from(services).where(eq(services.merchantId, merchantId)).execute();
-    const employees = await this.db.select().from(employees).where(eq(employees.merchantId, merchantId)).execute();
-    const clients = await this.db.select().from(clients).where(eq(clients.merchantId, merchantId)).execute();
+    const merchantAppointments = await this.db.select().from(appointments).where(eq(appointments.merchantId, merchantId)).execute();
+    const merchantServices = await this.db.select().from(services).where(eq(services.merchantId, merchantId)).execute();
+    const merchantEmployees = await this.db.select().from(employees).where(eq(employees.merchantId, merchantId)).execute();
+    const merchantClients = await this.db.select().from(clients).where(eq(clients.merchantId, merchantId)).execute();
 
-    const todaysAppointments = appointments.filter(a => a.appointmentDate === today);
-    const thisMonthAppointments = appointments.filter(a => new Date(a.createdAt!) >= startOfMonth);
-    const completedAppointments = appointments.filter(a => a.status === 'completed');
+    const todaysAppointments = merchantAppointments.filter(a => a.appointmentDate === today);
+    const thisMonthAppointments = merchantAppointments.filter(a => new Date(a.createdAt!) >= startOfMonth);
+    const completedAppointments = merchantAppointments.filter(a => a.status === 'completed');
 
     return {
-      totalAppointments: appointments.length,
+      totalAppointments: merchantAppointments.length,
       completedAppointments: completedAppointments.length,
-      pendingAppointments: appointments.filter(a => a.status === 'pending').length,
+      pendingAppointments: merchantAppointments.filter(a => a.status === 'pending').length,
       todaysAppointments: todaysAppointments.length,
       thisMonthAppointments: thisMonthAppointments.length,
       totalRevenue: completedAppointments.reduce((sum, a) => sum + (a.price || 0), 0),
-      totalServices: services.length,
-      activeServices: services.filter(s => s.isActive).length,
-      totalEmployees: employees.length,
-      activeEmployees: employees.filter(e => e.isActive).length,
-      totalClients: clients.length,
+      totalServices: merchantServices.length,
+      activeServices: merchantServices.filter(s => s.isActive).length,
+      totalEmployees: merchantEmployees.length,
+      activeEmployees: merchantEmployees.filter(e => e.isActive).length,
+      totalClients: merchantClients.length,
     };
   }
 

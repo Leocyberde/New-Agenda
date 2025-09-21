@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Header from "@/components/layout/header";
@@ -86,10 +85,16 @@ export default function MerchantAccess() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate multiple related queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchants/stats"] });
-      setIsAccessModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merchants/expired-access"] });
+
+      // Force refetch to update the UI immediately
+      queryClient.refetchQueries({ queryKey: ["/api/merchants"] });
+
       setSelectedMerchant(null);
+      setAccessForm({ durationDays: 30, monthlyFee: 5000 }); // Reset form fields
       toast({
         title: "Acesso concedido!",
         description: "O acesso foi concedido com sucesso.",
@@ -136,8 +141,14 @@ export default function MerchantAccess() {
       return response.json();
     },
     onSuccess: (data) => {
+      // Invalidate multiple related queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchants/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merchants/expired-access"] });
+
+      // Force refetch to update the UI immediately
+      queryClient.refetchQueries({ queryKey: ["/api/merchants"] });
+
       toast({
         title: "Acesso renovado!",
         description: `Acesso renovado por ${data.durationDays} dias com sucesso.`,
@@ -161,8 +172,14 @@ export default function MerchantAccess() {
       return response.json();
     },
     onSuccess: (data) => {
+      // Invalidate multiple related queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchants/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merchants/expired-access"] });
+
+      // Force refetch to update the UI immediately
+      queryClient.refetchQueries({ queryKey: ["/api/merchants"] });
+
       toast({
         title: "Plano VIP ativado!",
         description: `Plano VIP ativado por ${data.durationDays} dias com sucesso.`,
@@ -199,15 +216,15 @@ export default function MerchantAccess() {
       }
       return <Badge className="bg-green-100 text-green-800">Ativo</Badge>;
     }
-    
+
     if (merchant.status === "payment_pending") {
       return <Badge variant="destructive">Pagamento Pendente</Badge>;
     }
-    
+
     if (merchant.status === "pending") {
       return <Badge className="bg-yellow-100 text-yellow-800">Aguardando Aprovação</Badge>;
     }
-    
+
     return <Badge variant="secondary">{merchant.status}</Badge>;
   };
 
@@ -235,7 +252,7 @@ export default function MerchantAccess() {
 
   const handleSubmitAccess = () => {
     if (!selectedMerchant) return;
-    
+
     grantAccessMutation.mutate({
       merchantId: selectedMerchant.id,
       durationDays: accessForm.durationDays,
@@ -251,7 +268,7 @@ export default function MerchantAccess() {
 
   const handleSubmitRenewal = () => {
     if (!selectedMerchant) return;
-    
+
     renewAccessMutation.mutate({
       merchantId: selectedMerchant.id,
       durationDays: renewForm.durationDays,
@@ -268,7 +285,7 @@ export default function MerchantAccess() {
 
   const handleSubmitVipUpgrade = () => {
     if (!selectedMerchant) return;
-    
+
     upgradeToVipMutation.mutate({
       merchantId: selectedMerchant.id,
       durationDays: vipForm.durationDays,
@@ -411,12 +428,12 @@ export default function MerchantAccess() {
                           <td className="py-3">
                             <div className="font-medium">{formatCurrency(merchant.monthlyFee)}</div>
                             <Badge variant={
-                              merchant.paymentStatus === "paid" ? "default" : 
-                              merchant.paymentStatus === "trial" ? "secondary" : 
+                              merchant.paymentStatus === "paid" ? "default" :
+                              merchant.paymentStatus === "trial" ? "secondary" :
                               "destructive"
                             } className="text-xs">
-                              {merchant.paymentStatus === "paid" ? "Pago" : 
-                               merchant.paymentStatus === "trial" ? "Teste Grátis" : 
+                              {merchant.paymentStatus === "paid" ? "Pago" :
+                               merchant.paymentStatus === "trial" ? "Teste Grátis" :
                                "Pendente"}
                             </Badge>
                           </td>
@@ -436,7 +453,7 @@ export default function MerchantAccess() {
                                   Conceder Acesso
                                 </Button>
                               )}
-                              
+
                               {merchant.status === "active" && (
                                 <>
                                   <Button
@@ -466,7 +483,7 @@ export default function MerchantAccess() {
                                   </Button>
                                 </>
                               )}
-                              
+
                               {(merchant.status === "payment_pending" || merchant.status === "inactive") && (
                                 <>
                                   <Button
@@ -517,7 +534,7 @@ export default function MerchantAccess() {
                 onChange={(e) => setAccessForm({ ...accessForm, durationDays: parseInt(e.target.value) || 30 })}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="fee">Taxa Mensal (R$)</Label>
               <Input
@@ -560,7 +577,7 @@ export default function MerchantAccess() {
                 ⚠️ Esta renovação será feita DIRETAMENTE pelo administrador, sem necessidade de pagamento PIX.
               </p>
             </div>
-            
+
             <div>
               <Label htmlFor="renewDuration">Duração da Renovação (dias)</Label>
               <Input
@@ -603,7 +620,7 @@ export default function MerchantAccess() {
                 ⭐ Esta ativação VIP será feita DIRETAMENTE pelo administrador, sem necessidade de pagamento PIX.
               </p>
             </div>
-            
+
             <div>
               <Label htmlFor="vipDuration">Duração do Plano VIP (dias)</Label>
               <Input

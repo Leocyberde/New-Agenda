@@ -546,8 +546,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/merchants", authenticateToken, async (req, res) => {
     try {
       const merchants = await storage.getAllMerchants();
+      
+      // Log merchant access dates for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`\n=== MERCHANTS QUERY RESULT ===`);
+        merchants.forEach(merchant => {
+          console.log(`${merchant.name} (${merchant.email}):`, {
+            status: merchant.status,
+            accessEndDate: merchant.accessEndDate,
+            paymentStatus: merchant.paymentStatus,
+            lastUpdated: merchant.updatedAt
+          });
+        });
+        console.log(`=== END MERCHANTS QUERY ===\n`);
+      }
+      
       res.json(merchants.map(toPublicMerchant));
     } catch (error) {
+      console.error("Error fetching merchants:", error);
       res.status(500).json({ message: "Erro ao buscar comerciantes" });
     }
   });
@@ -4020,10 +4036,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Renew merchant access
   app.post("/api/admin/merchants/:id/renew-access", authenticateToken, requireRole(["admin"]), async (req, res) => {
     try {
+      console.log(`=== RENEWING MERCHANT ACCESS ===`);
+      console.log(`Merchant ID: ${req.params.id}`);
+      
       const merchant = await storage.renewMerchantAccess(req.params.id);
       if (!merchant) {
+        console.error(`Merchant ${req.params.id} not found for renewal`);
         return res.status(404).json({ message: "Comerciante não encontrado" });
       }
+
+      console.log(`Merchant renewed successfully:`, {
+        id: merchant.id,
+        name: merchant.name,
+        accessEndDate: merchant.accessEndDate,
+        paymentStatus: merchant.paymentStatus,
+        status: merchant.status
+      });
 
       res.json({ message: "Acesso renovado com sucesso", merchant: toPublicMerchant(merchant) });
     } catch (error) {

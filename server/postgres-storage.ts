@@ -1,10 +1,9 @@
-
-import { type User, type InsertUser, type Merchant, type InsertMerchant, type Service, type InsertService, type Employee, type InsertEmployee, type Client, type InsertClient, type Appointment, type InsertAppointment, type AvailabilityData, type AppointmentStatusData, promotions, type EmployeeDayOff, type InsertEmployeeDayOff, type Promotion, type InsertPromotion, type SystemSetting, users, merchants, 
-  services, 
-  employees, 
-  clients, 
-  appointments, 
-  employeeDaysOff, 
+import { type User, type InsertUser, type Merchant, type InsertMerchant, type Service, type InsertService, type Employee, type InsertEmployee, type Client, type InsertClient, type Appointment, type InsertAppointment, type AvailabilityData, type AppointmentStatusData, promotions, type EmployeeDayOff, type InsertEmployeeDayOff, type Promotion, type InsertPromotion, type SystemSetting, users, merchants,
+  services,
+  employees,
+  clients,
+  appointments,
+  employeeDaysOff,
   systemSettings } from "../shared/schema";
 
 import { db } from "./db-config";
@@ -28,7 +27,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async initialize(): Promise<void> {
     if (!this.initialized) {
-      
+
       // Check if database exists and has tables
       const tables = await this.db.select({ tableName: sql<string>`tablename` })
         .from(sql`pg_catalog.pg_tables`)
@@ -258,11 +257,11 @@ export class PostgreSQLStorage implements IStorage {
     const now = new Date();
 
     return {
-      activeAccess: allMerchants.filter(m => 
-        m.status === "active" && 
+      activeAccess: allMerchants.filter(m =>
+        m.status === "active" &&
         (!m.accessEndDate || new Date(m.accessEndDate) > now)
       ).length,
-      expiredAccess: allMerchants.filter(m => 
+      expiredAccess: allMerchants.filter(m =>
         m.accessEndDate && new Date(m.accessEndDate) <= now
       ).length,
       paymentPending: allMerchants.filter(m => m.status === "payment_pending").length,
@@ -1274,26 +1273,65 @@ export class PostgreSQLStorage implements IStorage {
     };
   }
 
-  async grantMerchantAccess(merchantId: string, durationDays: number, monthlyFee?: number): Promise<Merchant | undefined> {
-    if (!this.initialized) await this.initialize();
-    const now = new Date();
-    const accessEndDate = new Date(now);
-    accessEndDate.setDate(now.getDate() + durationDays);
+  async grantMerchantAccess(merchantId: string, durationDays: number, monthlyFee?: number): Promise<Merchant | null> {
+    try {
+      console.log(`\n=== GRANTING MERCHANT ACCESS ===`);
+      console.log(`Merchant ID: ${merchantId}, Duration: ${durationDays} days, Fee: ${monthlyFee}`);
 
-    const updates = {
-      status: "active" as const,
-      accessStartDate: now,
-      accessEndDate: accessEndDate,
-      accessDurationDays: durationDays,
-      lastPaymentDate: now,
-      nextPaymentDue: accessEndDate,
-      paymentStatus: "paid" as const,
-      monthlyFee: monthlyFee || 0,
-      updatedAt: new Date(),
-    };
+      const now = new Date();
+      const accessEndDate = new Date(now);
+      accessEndDate.setDate(now.getDate() + durationDays);
 
-    await this.db.update(merchants).set(updates).where(eq(merchants.id, merchantId)).execute();
-    return this.getMerchant(merchantId);
+      const nextPaymentDue = new Date(accessEndDate);
+      nextPaymentDue.setDate(nextPaymentDue.getDate() + durationDays);
+
+      console.log(`Access dates:`, {
+        startDate: now.toISOString(),
+        endDate: accessEndDate.toISOString(),
+        nextPaymentDue: nextPaymentDue.toISOString()
+      });
+
+      const updates: any = {
+        status: "active",
+        accessStartDate: now,
+        accessEndDate: accessEndDate,
+        accessDurationDays: durationDays,
+        lastPaymentDate: now,
+        nextPaymentDue: nextPaymentDue,
+        paymentStatus: "paid",
+        updatedAt: now,
+      };
+
+      if (monthlyFee !== undefined) {
+        updates.monthlyFee = monthlyFee;
+      }
+
+      const updatedMerchant = await this.db
+        .update(merchants)
+        .set(updates)
+        .where(eq(merchants.id, merchantId))
+        .returning()
+        .then(rows => rows[0]);
+
+      if (!updatedMerchant) {
+        console.error(`Failed to grant access to merchant ${merchantId}`);
+        return null;
+      }
+
+      console.log(`Access granted successfully:`, {
+        id: updatedMerchant.id,
+        name: updatedMerchant.name,
+        status: updatedMerchant.status,
+        accessEndDate: updatedMerchant.accessEndDate,
+        paymentStatus: updatedMerchant.paymentStatus
+      });
+      console.log(`=== END GRANT ACCESS ===\n`);
+
+      return updatedMerchant;
+    } catch (error) {
+      console.error("Error granting merchant access:", error);
+      throw error;
+    }
   }
 
   async suspendMerchantAccess(merchantId: string): Promise<Merchant | undefined> {
@@ -1307,38 +1345,125 @@ export class PostgreSQLStorage implements IStorage {
     return this.getMerchant(merchantId);
   }
 
-  async renewMerchantAccess(merchantId: string): Promise<Merchant | undefined> {
-    if (!this.initialized) await this.initialize();
-    const merchant = await this.getMerchant(merchantId);
-    if (!merchant) return undefined;
+  async renewMerchantAccess(merchantId: string): Promise<Merchant | null> {
+    try {
+      console.log(`\n=== RENEWING MERCHANT ACCESS IN STORAGE ===`);
+      console.log(`Merchant ID: ${merchantId}`);
 
-    const now = new Date();
-    const durationDays = merchant.accessDurationDays || 30;
-    const accessEndDate = new Date(now);
-    accessEndDate.setDate(now.getDate() + durationDays);
+      const merchant = await this.db
+        .select()
+        .from(merchants)
+        .where(eq(merchants.id, merchantId))
+        .then(rows => rows[0]);
 
-    const updates = {
-      status: "active" as const,
-      accessEndDate: accessEndDate,
-      lastPaymentDate: now,
-      nextPaymentDue: accessEndDate,
-      paymentStatus: "paid" as const,
-      updatedAt: new Date(),
-    };
+      if (!merchant) {
+        console.error(`Merchant ${merchantId} not found in database`);
+        return null;
+      }
 
-    await this.db.update(merchants).set(updates).where(eq(merchants.id, merchantId)).execute();
-    return this.getMerchant(merchantId);
+      console.log(`Current merchant state:`, {
+        name: merchant.name,
+        status: merchant.status,
+        accessEndDate: merchant.accessEndDate,
+        paymentStatus: merchant.paymentStatus,
+        accessDurationDays: merchant.accessDurationDays
+      });
+
+      const now = new Date();
+      const currentEndDate = merchant.accessEndDate ? new Date(merchant.accessEndDate) : now;
+
+      // Always extend from the current end date if valid, otherwise from now
+      const baseDate = currentEndDate > now ? currentEndDate : now;
+      const durationDays = merchant.accessDurationDays || 30;
+
+      const newEndDate = new Date(baseDate);
+      newEndDate.setDate(newEndDate.getDate() + durationDays);
+
+      const newPaymentDue = new Date(newEndDate);
+      newPaymentDue.setDate(newPaymentDue.getDate() + durationDays);
+
+      console.log(`Renewal calculation:`, {
+        currentEndDate: currentEndDate.toISOString(),
+        baseDate: baseDate.toISOString(),
+        durationDays,
+        newEndDate: newEndDate.toISOString(),
+        newPaymentDue: newPaymentDue.toISOString()
+      });
+
+      const updatedMerchant = await this.db
+        .update(merchants)
+        .set({
+          status: "active",
+          accessStartDate: merchant.accessStartDate || now, // Keep existing start date or set to now
+          accessEndDate: newEndDate,
+          lastPaymentDate: now,
+          nextPaymentDue: newPaymentDue,
+          paymentStatus: "paid",
+          updatedAt: now,
+        })
+        .where(eq(merchants.id, merchantId))
+        .returning()
+        .then(rows => rows[0]);
+
+      if (!updatedMerchant) {
+        console.error(`Failed to update merchant ${merchantId}`);
+        return null;
+      }
+
+      console.log(`Merchant renewal completed:`, {
+        id: updatedMerchant.id,
+        name: updatedMerchant.name,
+        status: updatedMerchant.status,
+        accessEndDate: updatedMerchant.accessEndDate,
+        paymentStatus: updatedMerchant.paymentStatus
+      });
+      console.log(`=== END MERCHANT RENEWAL ===\n`);
+
+      return updatedMerchant;
+    } catch (error) {
+      console.error("Error renewing merchant access:", error);
+      throw error;
+    }
   }
 
-  async updateMerchantAccessSettings(merchantId: string, updates: any): Promise<Merchant | undefined> {
-    if (!this.initialized) await this.initialize();
-    const processedUpdates = {
-      ...updates,
-      updatedAt: new Date(),
-    };
+  async updateMerchantAccessSettings(merchantId: string, settings: any): Promise<Merchant | null> {
+    try {
+      console.log(`\n=== UPDATING MERCHANT ACCESS SETTINGS ===`);
+      console.log(`Merchant ID: ${merchantId}`);
+      console.log(`Settings:`, settings);
 
-    await this.db.update(merchants).set(processedUpdates).where(eq(merchants.id, merchantId)).execute();
-    return this.getMerchant(merchantId);
+      const now = new Date();
+      const updates = {
+        ...settings,
+        updatedAt: now,
+      };
+
+      const updatedMerchant = await this.db
+        .update(merchants)
+        .set(updates)
+        .where(eq(merchants.id, merchantId))
+        .returning()
+        .then(rows => rows[0]);
+
+      if (!updatedMerchant) {
+        console.error(`Failed to update access settings for merchant ${merchantId}`);
+        return null;
+      }
+
+      console.log(`Access settings updated:`, {
+        id: updatedMerchant.id,
+        name: updatedMerchant.name,
+        accessEndDate: updatedMerchant.accessEndDate,
+        paymentStatus: updatedMerchant.paymentStatus,
+        monthlyFee: updatedMerchant.monthlyFee
+      });
+      console.log(`=== END UPDATE ACCESS SETTINGS ===\n`);
+
+      return updatedMerchant;
+    } catch (error) {
+      console.error("Error updating merchant access settings:", error);
+      throw error;
+    }
   }
 
   async getMerchantsWithExpiredAccess(): Promise<Merchant[]> {
